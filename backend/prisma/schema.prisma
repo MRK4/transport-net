@@ -1,0 +1,89 @@
+// Schéma Prisma pour Transport-Net
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  username      String
+  email         String?
+  provider      String    // 'discord', 'github', 'twitter'
+  providerId    String    // ID de l'utilisateur chez le provider
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  networks      Network[]
+  
+  @@unique([provider, providerId])
+}
+
+model Network {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name          String    @default("Mon réseau")
+  money         Float     @default(10000) // Argent de départ
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  stations      Station[]
+  lines         Line[]
+  
+  @@index([userId])
+}
+
+model Station {
+  id            String    @id @default(uuid())
+  networkId     String
+  network       Network   @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  
+  name          String
+  x             Float     // Position X sur la carte
+  y             Float     // Position Y sur la carte
+  type          String    @default("metro") // 'metro', 'tramway', etc.
+  revenue       Float     @default(100) // Revenu par seconde
+  cost          Float     @default(1000) // Coût de construction
+  createdAt     DateTime  @default(now())
+  
+  lineConnections LineStation[]
+  
+  @@index([networkId])
+}
+
+model Line {
+  id            String    @id @default(uuid())
+  networkId     String
+  network       Network   @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  
+  name          String
+  color         String    @default("#FF0000") // Couleur hexadécimale
+  type          String    @default("metro") // 'metro', 'tramway', etc.
+  createdAt     DateTime  @default(now())
+  
+  stations      LineStation[]
+  
+  @@index([networkId])
+}
+
+model LineStation {
+  id            String    @id @default(uuid())
+  lineId        String
+  line          Line      @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  stationId     String
+  station       Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  
+  order         Int       // Ordre de la station sur la ligne
+  
+  @@unique([lineId, stationId])
+  @@index([lineId])
+  @@index([stationId])
+}
+

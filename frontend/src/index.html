@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transport-Net - Jeu de réseau de transport</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="overflow-hidden">
+    <div id="game-container" class="flex w-screen h-screen">
+        <div id="phaser-game" class="flex-1"></div>
+        
+        <div id="ui-overlay" class="absolute top-0 left-0 w-full h-full pointer-events-none">
+            <!-- Tableau de bord -->
+            <div id="dashboard" class="pointer-events-auto absolute top-3 right-3 card glass-effect" style="min-width: 240px;">
+                <div class="card-header py-3 px-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-success flex items-center gap-1.5">
+                            <span>🚇</span>
+                            <span>Tableau de bord</span>
+                        </h2>
+                        <!-- Bouton de thème intégré -->
+                        <button id="theme-toggle" class="w-8 h-8 rounded-md hover:bg-dark-700 flex items-center justify-center transition-colors">
+                            <span id="theme-icon" class="text-lg">🌙</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body py-3 px-4">
+                    <!-- Informations utilisateur -->
+                    <div id="user-section" class="hidden border-b pb-2 mb-2" style="border-color: var(--border-color);">
+                        <div class="flex items-center gap-2 mb-2">
+                            <img id="user-avatar" src="" alt="Avatar" class="w-8 h-8 rounded-full border border-primary-500">
+                            <div class="flex-1 min-w-0">
+                                <p id="user-name" class="font-medium text-sm truncate" style="color: var(--text-primary);"></p>
+                                <p class="text-xs" style="color: var(--text-tertiary);">Connecté</p>
+                            </div>
+                            <button class="text-xs px-2 py-1 rounded hover:bg-danger/10 transition-colors" style="color: var(--text-tertiary);" id="logout-btn" title="Déconnexion">
+                                🚪
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Mode invité -->
+                    <div id="guest-section" class="hidden border-b pb-2 mb-2" style="border-color: var(--border-color);">
+                        <div class="flex items-center gap-2" style="color: var(--warning);">
+                            <span class="text-xl">👤</span>
+                            <div>
+                                <p class="font-medium text-xs">Mode Invité</p>
+                                <p class="text-xs" style="color: var(--text-tertiary);">Non sauvegardé</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Statistiques -->
+                    <div class="stat-item py-1.5">
+                        <span class="stat-label text-xs">💰 Argent</span>
+                        <span class="stat-value text-sm" id="money">10 000 €</span>
+                    </div>
+                    <div class="stat-item py-1.5">
+                        <span class="stat-label text-xs">📈 Revenu/s</span>
+                        <span class="stat-value text-sm text-primary-400" id="revenue">0 €/s</span>
+                    </div>
+                    <div class="stat-item py-1.5 border-t mt-2 pt-2" style="border-color: var(--border-color);">
+                        <span class="stat-label text-xs">🚉 Stations</span>
+                        <span class="stat-value text-sm text-warning" id="stations">0</span>
+                    </div>
+                    <div class="stat-item py-1.5">
+                        <span class="stat-label text-xs">🚆 Lignes</span>
+                        <span class="stat-value text-sm text-warning" id="lines">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Barre d'outils -->
+            <div id="toolbar" class="pointer-events-auto fixed bottom-5 left-1/2 -translate-x-1/2 card glass-effect px-4 py-3">
+                <div class="flex gap-3">
+                    <button class="tool-btn flex items-center gap-2 px-4 py-2" id="tool-station">
+                        <span class="text-xl">🚉</span>
+                        <span class="font-medium">Station</span>
+                    </button>
+                    <button class="tool-btn flex items-center gap-2 px-4 py-2" id="tool-line">
+                        <span class="text-xl">📍</span>
+                        <span class="font-medium">Ligne</span>
+                    </button>
+                    <button class="tool-btn flex items-center gap-2 px-4 py-2 hover:bg-danger hover:ring-danger" id="tool-delete">
+                        <span class="text-xl">🗑️</span>
+                        <span class="font-medium">Supprimer</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
