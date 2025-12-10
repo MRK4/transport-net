@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { APIClient } from '../services/APIClient';
 import { UIManager } from '../managers/UIManager';
 import { CostDisplay } from '../components/CostDisplay';
+import { TrainManager } from '../managers/TrainManager';
 
 export class GameScene extends Phaser.Scene {
   private apiClient!: APIClient;
@@ -17,7 +18,12 @@ export class GameScene extends Phaser.Scene {
   // Graphiques
   private stationGraphics!: Phaser.GameObjects.Graphics;
   private lineGraphics!: Phaser.GameObjects.Graphics;
+  private trainGraphics!: Phaser.GameObjects.Graphics;
   private gameTitle!: Phaser.GameObjects.Text;
+  
+  // Gestionnaire de trains
+  private trainManager!: TrainManager;
+  private revenuePerArrival: number = 0; // Revenu par arrivée de train
   
   // Création de ligne
   private lineCreationMode: 'selecting_first' | 'selecting_second' | 'none' = 'none';
@@ -28,16 +34,84 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
   
+  update(time: number, delta: number): void {
+    // Mettre à jour les trains et gérer les arrivées en station
+    this.trainManager.update(delta, (train, station) => {
+      this.handleTrainArrival(train, station);
+    });
+    
+    // Redessiner les trains
+    this.trainManager.draw(this.trainGraphics);
+  }
+  
+  private handleTrainArrival(train: any, station: any): void {
+    // Calculer le revenu généré par ce passage
+    const revenue = this.calculateRevenueForArrival(train.line, station);
+    
+    if (revenue > 0) {
+      this.money += revenue;
+      this.updateUI();
+      
+      // Afficher un petit indicateur de revenus (optionnel)
+      this.showRevenueIndicator(station.x, station.y, revenue);
+    }
+  }
+  
+  private calculateRevenueForArrival(line: any, station: any): number {
+    // Revenu de base par arrivée
+    let revenue = 50; // 50€ par arrivée de base
+    
+    // Bonus selon le nombre de stations sur la ligne
+    const stationCount = line.stations ? line.stations.length : 0;
+    revenue += stationCount * 10; // +10€ par station sur la ligne
+    
+    // Bonus si la station est une correspondance
+    const connectionCount = this.lines.filter(l =>
+      l.stations && l.stations.some((ls: any) => ls.station.id === station.id)
+    ).length;
+    
+    if (connectionCount >= 2) {
+      revenue *= (1 + (connectionCount - 1) * 0.25); // +25% par ligne supplémentaire
+    }
+    
+    return Math.round(revenue);
+  }
+  
+  private showRevenueIndicator(x: number, y: number, revenue: number): void {
+    // Créer un texte flottant qui indique le revenu
+    const text = this.add.text(x, y - 20, `+${revenue}€`, {
+      fontSize: '14px',
+      color: '#16c784',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    });
+    
+    // Animation de montée et disparition
+    this.tweens.add({
+      targets: text,
+      y: y - 50,
+      alpha: 0,
+      duration: 1500,
+      ease: 'Power2',
+      onComplete: () => {
+        text.destroy();
+      }
+    });
+  }
+  
   init() {
     this.apiClient = this.registry.get('apiClient');
     this.uiManager = this.registry.get('uiManager');
     this.costDisplay = new CostDisplay();
+    this.trainManager = new TrainManager();
   }
   
   create() {
-    // Créer les graphiques
+    // Créer les graphiques (ordre important pour le z-index)
     this.lineGraphics = this.add.graphics();
     this.stationGraphics = this.add.graphics();
+    this.trainGraphics = this.add.graphics();
     this.temporaryLineGraphics = this.add.graphics();
     
     // Gérer les clics sur la carte
@@ -49,14 +123,6 @@ export class GameScene extends Phaser.Scene {
     // Charger le réseau de l'utilisateur
     this.loadNetwork();
     
-    // Mettre à jour les revenus toutes les secondes
-    this.time.addEvent({
-      delay: 1000,
-      callback: this.updateRevenue,
-      callbackScope: this,
-      loop: true
-    });
-    
     // Afficher un message de bienvenue
     this.addText();
     
@@ -65,6 +131,21 @@ export class GameScene extends Phaser.Scene {
     
     // Initialiser l'affichage des coûts
     this.updateUI();
+    
+    // Sauvegarder périodiquement (toutes les 30 secondes)
+    this.time.addEvent({
+      delay: 30000,
+      callback: this.saveProgress,
+      callbackScope: this,
+      loop: true
+    });
+  }
+  
+  private saveProgress() {
+    if (!this.uiManager.isGuestMode() && this.network) {
+      this.apiClient.updateNetworkMoney(this.network.id, this.money)
+        .catch(err => console.error('Erreur de sauvegarde:', err));
+    }
   }
   
   private setupThemeListener() {
@@ -166,6 +247,11 @@ export class GameScene extends Phaser.Scene {
       document.getElementById('tool-delete')?.classList.add('active');
       this.lineCreationMode = 'none';
       this.selectedStationForLine = null;
+      if (this.stations.length === 0 && this.lines.length === 0) {
+        this.uiManager.showNotification('Rien à supprimer', 'info');
+      } else {
+        this.uiManager.showNotification('Cliquez sur une station ou ligne à supprimer', 'info');
+      }
     }
     
     // Redessiner le réseau si on change d'outil
@@ -183,6 +269,10 @@ export class GameScene extends Phaser.Scene {
         this.stations = this.network.stations || [];
         this.lines = this.network.lines || [];
         this.calculateRevenue();
+        
+        // Créer les trains pour les lignes existantes
+        this.trainManager.createTrainsForLines(this.lines);
+        
         this.renderNetwork();
         this.updateUI();
       }
@@ -196,24 +286,107 @@ export class GameScene extends Phaser.Scene {
       this.createStation(pointer.x, pointer.y);
     } else if (this.currentTool === 'line') {
       this.handleLineCreationClick(pointer.x, pointer.y);
+    } else if (this.currentTool === 'delete') {
+      this.handleDeleteClick(pointer.x, pointer.y);
     }
+  }
+  
+  private handleDeleteClick(x: number, y: number) {
+    // D'abord essayer de trouver une station
+    const clickedStation = this.findStationAtPosition(x, y, 30);
+    
+    if (clickedStation) {
+      this.deleteStation(clickedStation);
+      return;
+    }
+    
+    // Sinon, essayer de trouver une ligne
+    const clickedLine = this.findLineAtPosition(x, y, 15);
+    
+    if (clickedLine) {
+      this.deleteLine(clickedLine);
+      return;
+    }
+    
+    this.uiManager.showNotification('Cliquez sur une station ou une ligne à supprimer', 'info');
+  }
+  
+  private findLineAtPosition(x: number, y: number, radius: number): any {
+    for (const line of this.lines) {
+      if (line.stations && line.stations.length >= 2) {
+        // Vérifier chaque segment de la ligne
+        for (let i = 0; i < line.stations.length - 1; i++) {
+          const station1 = line.stations[i].station;
+          const station2 = line.stations[i + 1].station;
+          
+          // Calculer la distance du point au segment de ligne
+          const distance = this.distanceToLineSegment(
+            x, y,
+            station1.x, station1.y,
+            station2.x, station2.y
+          );
+          
+          if (distance <= radius) {
+            return line;
+          }
+        }
+      }
+    }
+    return null;
+  }
+  
+  private distanceToLineSegment(
+    px: number, py: number,
+    x1: number, y1: number,
+    x2: number, y2: number
+  ): number {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+    
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+    
+    if (lenSq !== 0) {
+      param = dot / lenSq;
+    }
+    
+    let xx, yy;
+    
+    if (param < 0) {
+      xx = x1;
+      yy = y1;
+    } else if (param > 1) {
+      xx = x2;
+      yy = y2;
+    } else {
+      xx = x1 + param * C;
+      yy = y1 + param * D;
+    }
+    
+    const dx = px - xx;
+    const dy = py - yy;
+    
+    return Math.sqrt(dx * dx + dy * dy);
   }
   
   private handleLineCreationClick(x: number, y: number) {
     // Trouver la station la plus proche du clic
-    const clickedStation = this.findStationAtPosition(x, y, 20); // Rayon de 20px
+    const clickedStation = this.findStationAtPosition(x, y, 30); // Rayon de 30px pour faciliter le clic
     
     if (!clickedStation) {
-      this.uiManager.showNotification('Cliquez sur une station', 'info');
+      this.uiManager.showNotification('Cliquez sur une station existante', 'warning');
       return;
     }
     
-    if (this.lineCreationMode === 'none') {
+    if (this.lineCreationMode === 'selecting_first' || this.lineCreationMode === 'none') {
       // Première station sélectionnée
       this.selectedStationForLine = clickedStation;
       this.lineCreationMode = 'selecting_second';
       this.highlightStation(clickedStation);
-      this.uiManager.showNotification(`Station "${clickedStation.name}" sélectionnée. Cliquez sur une autre station.`, 'info');
+      this.uiManager.showNotification(`"${clickedStation.name}" sélectionnée → Cliquez sur la 2ème station`, 'success');
     } else if (this.lineCreationMode === 'selecting_second') {
       // Deuxième station sélectionnée
       if (clickedStation.id === this.selectedStationForLine.id) {
@@ -225,7 +398,7 @@ export class GameScene extends Phaser.Scene {
       this.createLine(this.selectedStationForLine, clickedStation);
       
       // Réinitialiser
-      this.lineCreationMode = 'none';
+      this.lineCreationMode = 'selecting_first';
       this.selectedStationForLine = null;
       this.renderNetwork();
     }
@@ -242,24 +415,8 @@ export class GameScene extends Phaser.Scene {
   }
   
   private highlightStation(station: any) {
-    this.stationGraphics.clear();
-    
-    // Redessiner toutes les stations
-    this.stations.forEach(s => {
-      if (s.id === station.id) {
-        // Station sélectionnée - surlignée
-        this.stationGraphics.fillStyle(0xffd700); // Or
-        this.stationGraphics.fillCircle(s.x, s.y, 15);
-        this.stationGraphics.lineStyle(3, 0xffffff);
-        this.stationGraphics.strokeCircle(s.x, s.y, 15);
-      } else {
-        // Station normale
-        this.stationGraphics.fillStyle(0x16c784);
-        this.stationGraphics.fillCircle(s.x, s.y, 10);
-        this.stationGraphics.lineStyle(2, 0xffffff);
-        this.stationGraphics.strokeCircle(s.x, s.y, 10);
-      }
-    });
+    // Utiliser renderNetwork qui gère maintenant le surlignage
+    this.renderNetwork();
   }
   
   private calculateStationCost(): number {
@@ -335,6 +492,104 @@ export class GameScene extends Phaser.Scene {
     }
   }
   
+  private async deleteStation(station: any) {
+    // Vérifier si la station est connectée à des lignes
+    const connectedLines = this.lines.filter(line =>
+      line.stations && line.stations.some((ls: any) => ls.station.id === station.id)
+    );
+    
+    if (connectedLines.length > 0) {
+      this.uiManager.showNotification(
+        `Supprimez d'abord les ${connectedLines.length} ligne(s) connectée(s)`,
+        'warning'
+      );
+      return;
+    }
+    
+    // Calculer le remboursement (10% du coût de construction)
+    const stationIndex = this.stations.findIndex(s => s.id === station.id);
+    const cost = station.cost || 1000;
+    const refund = Math.round(cost * 0.10);
+    
+    // Mode invité - suppression locale
+    if (this.uiManager.isGuestMode()) {
+      if (stationIndex !== -1) {
+        this.stations.splice(stationIndex, 1);
+        this.money += refund;
+        this.calculateRevenue();
+        this.renderNetwork();
+        this.updateUI();
+        this.uiManager.showNotification(`Station supprimée (+${refund.toLocaleString('fr-FR')} €)`, 'success');
+      }
+      return;
+    }
+    
+    // Mode connecté - suppression avec backend
+    try {
+      await this.apiClient.deleteStation(station.id);
+      
+      if (stationIndex !== -1) {
+        this.stations.splice(stationIndex, 1);
+      }
+      
+      this.money += refund;
+      this.calculateRevenue();
+      this.renderNetwork();
+      this.updateUI();
+      this.uiManager.showNotification(`Station supprimée (+${refund.toLocaleString('fr-FR')} €)`, 'success');
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la station:', error);
+      this.uiManager.showNotification('Erreur lors de la suppression', 'error');
+    }
+  }
+  
+  private async deleteLine(line: any) {
+    // Calculer le remboursement (10% du coût de construction)
+    const lineIndex = this.lines.findIndex(l => l.id === line.id);
+    // Estimer le coût basé sur l'index (avec formule progressive)
+    const estimatedCost = Math.round(500 * Math.pow(1.10, lineIndex));
+    const refund = Math.round(estimatedCost * 0.10);
+    
+    // Mode invité - suppression locale
+    if (this.uiManager.isGuestMode()) {
+      if (lineIndex !== -1) {
+        this.lines.splice(lineIndex, 1);
+        this.money += refund;
+        
+        // Recréer les trains pour les lignes restantes
+        this.trainManager.createTrainsForLines(this.lines);
+        
+        this.calculateRevenue();
+        this.renderNetwork();
+        this.updateUI();
+        this.uiManager.showNotification(`Ligne supprimée (+${refund.toLocaleString('fr-FR')} €)`, 'success');
+      }
+      return;
+    }
+    
+    // Mode connecté - suppression avec backend
+    try {
+      await this.apiClient.deleteLine(line.id);
+      
+      if (lineIndex !== -1) {
+        this.lines.splice(lineIndex, 1);
+      }
+      
+      this.money += refund;
+      
+      // Recréer les trains pour les lignes restantes
+      this.trainManager.createTrainsForLines(this.lines);
+      
+      this.calculateRevenue();
+      this.renderNetwork();
+      this.updateUI();
+      this.uiManager.showNotification(`Ligne supprimée (+${refund.toLocaleString('fr-FR')} €)`, 'success');
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la ligne:', error);
+      this.uiManager.showNotification('Erreur lors de la suppression', 'error');
+    }
+  }
+  
   private async createLine(station1: any, station2: any) {
     const cost = this.calculateLineCost();
     
@@ -374,6 +629,10 @@ export class GameScene extends Phaser.Scene {
       this.money -= cost;
       this.calculateRevenue();
       this.renderNetwork();
+      
+      // Créer les trains pour les lignes
+      this.trainManager.createTrainsForLines(this.lines);
+      
       this.updateUI();
       this.uiManager.showNotification(`Ligne créée ! (${cost.toLocaleString('fr-FR')} €, non sauvegardée)`, 'success');
       return;
@@ -408,6 +667,10 @@ export class GameScene extends Phaser.Scene {
       this.money -= cost;
       this.calculateRevenue();
       this.renderNetwork();
+      
+      // Créer les trains pour toutes les lignes
+      this.trainManager.createTrainsForLines(this.lines);
+      
       this.updateUI();
       this.uiManager.showNotification(`Ligne créée ! (${cost.toLocaleString('fr-FR')} €)`, 'success');
     } catch (error) {
@@ -417,38 +680,38 @@ export class GameScene extends Phaser.Scene {
   }
   
   private calculateRevenue() {
-    // Une station ne génère des revenus QUE si elle est reliée à au moins une ligne
-    let totalRevenue = 0;
+    // Calculer le revenu moyen par arrivée de train
+    let totalRevenuePerArrival = 0;
+    let trainCount = 0;
     
-    for (const station of this.stations) {
-      // Vérifier si la station est connectée à au moins une ligne
-      const isConnected = this.lines.some(line => 
-        line.stations && line.stations.some((ls: any) => 
-          ls.station && ls.station.id === station.id
-        )
-      );
-      
-      if (isConnected) {
-        // Station connectée : génère des revenus
-        totalRevenue += station.revenue || 100;
+    for (const line of this.lines) {
+      if (line.stations && line.stations.length >= 2) {
+        trainCount++;
+        
+        // Calculer le revenu moyen pour cette ligne
+        const stationCount = line.stations.length;
+        let lineRevenue = 50 + (stationCount * 10); // Base + bonus stations
+        
+        // Vérifier les correspondances pour chaque station
+        line.stations.forEach((ls: any) => {
+          const station = ls.station;
+          const connectionCount = this.lines.filter(l =>
+            l.stations && l.stations.some((s: any) => s.station.id === station.id)
+          ).length;
+          
+          if (connectionCount >= 2) {
+            lineRevenue *= (1 + (connectionCount - 1) * 0.25);
+          }
+        });
+        
+        totalRevenuePerArrival += lineRevenue;
       }
-      // Sinon : pas de revenus (station isolée)
     }
     
-    this.revenue = totalRevenue;
-  }
-  
-  private updateRevenue() {
-    if (this.revenue > 0) {
-      this.money += this.revenue;
-      
-      // Sauvegarder l'argent sur le serveur toutes les 10 secondes (seulement si connecté)
-      if (!this.uiManager.isGuestMode() && this.network && Math.random() < 0.1) {
-        this.apiClient.updateNetworkMoney(this.network.id, this.money);
-      }
-      
-      this.updateUI();
-    }
+    // Le "revenu/s" affiché est une estimation basée sur la fréquence des trains
+    // En supposant qu'un train arrive toutes les 5 secondes en moyenne
+    this.revenuePerArrival = totalRevenuePerArrival / Math.max(trainCount, 1);
+    this.revenue = Math.round((totalRevenuePerArrival / 5) * trainCount); // Estimation /s
   }
   
   private renderNetwork() {
@@ -459,7 +722,9 @@ export class GameScene extends Phaser.Scene {
     // Dessiner les lignes
     this.lines.forEach(line => {
       if (line.stations && line.stations.length > 1) {
-        this.lineGraphics.lineStyle(4, parseInt(line.color.replace('#', '0x')));
+        // Ligne plus épaisse en mode suppression pour faciliter le clic
+        const lineWidth = this.currentTool === 'delete' ? 10 : 6;
+        this.lineGraphics.lineStyle(lineWidth, parseInt(line.color.replace('#', '0x')), 0.8);
         this.lineGraphics.beginPath();
         
         line.stations.forEach((ls: any, index: number) => {
@@ -477,10 +742,51 @@ export class GameScene extends Phaser.Scene {
     
     // Dessiner les stations
     this.stations.forEach(station => {
-      this.stationGraphics.fillStyle(0x16c784);
-      this.stationGraphics.fillCircle(station.x, station.y, 10);
-      this.stationGraphics.lineStyle(2, 0xffffff);
-      this.stationGraphics.strokeCircle(station.x, station.y, 10);
+      // Vérifier si c'est la station sélectionnée
+      const isSelected = this.selectedStationForLine && station.id === this.selectedStationForLine.id;
+      
+      // Vérifier si la station est connectée à des lignes
+      const isConnected = this.lines.some(line =>
+        line.stations && line.stations.some((ls: any) => ls.station.id === station.id)
+      );
+      
+      if (isSelected) {
+        // Station sélectionnée - surlignée en or avec glow
+        this.stationGraphics.fillStyle(0xffd700, 1);
+        this.stationGraphics.fillCircle(station.x, station.y, 16);
+        this.stationGraphics.lineStyle(4, 0xffffff, 1);
+        this.stationGraphics.strokeCircle(station.x, station.y, 16);
+        
+        // Effet de glow
+        this.stationGraphics.lineStyle(2, 0xffd700, 0.5);
+        this.stationGraphics.strokeCircle(station.x, station.y, 20);
+      } else if (this.currentTool === 'delete' && isConnected) {
+        // Station connectée en mode suppression - rouge
+        this.stationGraphics.fillStyle(0xea3943, 1);
+        this.stationGraphics.fillCircle(station.x, station.y, 12);
+        this.stationGraphics.lineStyle(3, 0xffffff, 1);
+        this.stationGraphics.strokeCircle(station.x, station.y, 12);
+      } else {
+        // Station normale - vert si connectée, gris si isolée
+        const color = isConnected ? 0x16c784 : 0x94a3b8;
+        this.stationGraphics.fillStyle(color, 1);
+        this.stationGraphics.fillCircle(station.x, station.y, 12);
+        this.stationGraphics.lineStyle(3, 0xffffff, 1);
+        this.stationGraphics.strokeCircle(station.x, station.y, 12);
+      }
+      
+      // Ajouter un cercle de détection visuel en mode ligne (debug)
+      if (this.currentTool === 'line' && this.lineCreationMode !== 'none') {
+        this.stationGraphics.lineStyle(1, 0xff00ff, 0.3);
+        this.stationGraphics.strokeCircle(station.x, station.y, 30);
+      }
+      
+      // Cercle de détection en mode suppression
+      if (this.currentTool === 'delete') {
+        const deleteColor = isConnected ? 0xff0000 : 0x00ff00;
+        this.stationGraphics.lineStyle(1, deleteColor, 0.3);
+        this.stationGraphics.strokeCircle(station.x, station.y, 30);
+      }
     });
   }
   

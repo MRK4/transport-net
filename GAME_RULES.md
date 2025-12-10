@@ -78,21 +78,34 @@ Coût total : 735 €/min
 #### Création
 - **Coût de construction de base** : 1 000 € pour la première station
 - **Coût progressif** : Chaque nouvelle station coûte plus cher que la précédente
-  - Station 1 : 1 000 €
-  - Station 2 : 1 100 € (+10%)
-  - Station 3 : 1 210 € (+10%)
-  - Station n : Coût précédent × 1.10
+  - Station 1 : 1 000 € (10 secondes)
+  - Station 2 : 1 100 € (11 secondes)
+  - Station 3 : 1 210 € (12 secondes)
+  - Station n : Coût précédent × 1.10 (10+n-1 secondes)
+- **Temps de construction** : 10 secondes + 1 seconde par station existante
 - Placement libre sur la carte
 - Pas de limite de distance entre stations
 
-> ⚠️ **Attention** : Plus vous construisez de stations, plus les suivantes deviennent chères !
+> ⚠️ **Attention** : Plus vous construisez de stations, plus les suivantes deviennent chères ET plus longues à construire !
+
+#### Suppression
+- Utilisez l'outil **"🗑️ Supprimer"**
+- **Remboursement** : 10% du coût de construction
+- Les stations connectées à des lignes **ne peuvent pas** être supprimées
+- Supprimez d'abord les lignes connectées
+
+**Exemple :**
+- Station construite pour 1 100 € → Remboursement de 110 €
+- Vous perdez donc 990 € (90% du coût)
 
 #### Améliorations
 - Niveau 1 : Station de base (100 €/s de revenu potentiel)
-- Niveau 2 : +50% de capacité (+150 €/s)
-- Niveau 3 : +100% de capacité (+200 €/s)
-- Niveau 4 : +150% de capacité (+250 €/s)
-- Niveau 5 : +200% de capacité (station terminus, +300 €/s)
+- Niveau 2 : +50% de capacité (+150 €/s) - **Temps : 15 secondes**
+- Niveau 3 : +100% de capacité (+200 €/s) - **Temps : 20 secondes**
+- Niveau 4 : +150% de capacité (+250 €/s) - **Temps : 25 secondes**
+- Niveau 5 : +200% de capacité (station terminus, +300 €/s) - **Temps : 30 secondes**
+
+> ⏱️ **Pendant l'amélioration**, la station continue de fonctionner mais ne peut pas être améliorée à nouveau.
 
 #### Particularités
 - Une station peut être connectée à **plusieurs lignes**
@@ -105,14 +118,24 @@ Coût total : 735 €/min
 #### Création
 - **Coût de construction de base** : 500 € pour la première ligne
 - **Coût progressif** : Chaque nouvelle ligne coûte plus cher que la précédente
-  - Ligne 1 : 500 €
-  - Ligne 2 : 550 € (+10%)
-  - Ligne 3 : 605 € (+10%)
-  - Ligne n : Coût précédent × 1.10
+  - Ligne 1 : 500 € (10 secondes)
+  - Ligne 2 : 550 € (11 secondes)
+  - Ligne 3 : 605 € (12 secondes)
+  - Ligne n : Coût précédent × 1.10 (10+n-1 secondes)
+- **Temps de construction** : 10 secondes + 1 seconde par ligne existante
 - Choix de la couleur pour différencier les lignes
 - Nom personnalisable
 
-> ⚠️ **Attention** : Plus vous construisez de lignes, plus les suivantes deviennent chères !
+> ⚠️ **Attention** : Plus vous construisez de lignes, plus les suivantes deviennent chères ET plus longues à construire !
+
+#### Suppression
+- Utilisez l'outil **"🗑️ Supprimer"**
+- **Remboursement** : 10% du coût de construction
+- Cliquez directement sur la ligne à supprimer
+
+**Exemple :**
+- Ligne construite pour 550 € → Remboursement de 55 €
+- Vous perdez donc 495 € (90% du coût)
 
 #### Connexion des stations
 - **Deux stations ne peuvent être reliées qu'une seule fois**
@@ -125,9 +148,11 @@ Coût total : 735 €/min
 - **Bus** : Lent, faible capacité, coût faible
 
 #### Améliorations
-- Augmentation de la fréquence des trains
-- Augmentation de la vitesse
-- Augmentation de la capacité
+- **Augmentation de la fréquence** des trains - Temps : 15 secondes
+- **Augmentation de la vitesse** - Temps : 20 secondes
+- **Augmentation de la capacité** - Temps : 25 secondes
+
+> ⏱️ **Pendant l'amélioration**, la ligne continue de fonctionner normalement.
 
 ---
 
@@ -142,6 +167,71 @@ Coût total : 735 €/min
 - 1 train minimum par ligne
 - Jusqu'à 5 trains maximum par ligne
 - Plus de trains = plus de revenus mais aussi plus de coûts
+
+---
+
+## ⏱️ Système de construction & temps
+
+### Temps de construction progressif
+
+#### Mécaniques
+- **Chaque construction prend du temps** - Vous devez attendre avant que l'élément soit opérationnel
+- **Le temps augmente avec chaque construction** - Plus vous construisez, plus c'est long
+- **Pendant la construction** :
+  - L'élément est **visible** sur la carte
+  - Il est **indisponible** et ne génère **aucun revenu**
+  - Vous ne pouvez pas interagir avec
+  - Une barre de progression ou indicateur visuel montre l'état
+
+#### Formule de temps
+```
+Temps de construction = 10 secondes + (nombre d'éléments existants × 1 seconde)
+```
+
+**Exemples :**
+- 1ère station : 10 secondes
+- 5ème station : 14 secondes
+- 10ème station : 19 secondes
+- 20ème station : 29 secondes
+
+#### Impact stratégique
+- ⏳ Vous devez **planifier vos constructions**
+- 💡 Construire en avance pour anticiper vos besoins
+- 📊 Pendant la construction, vos revenus ne progressent pas
+- 🎯 Optimisez l'ordre de construction pour minimiser les temps morts
+
+### Système de remboursement
+
+#### Suppression d'éléments
+- **Remboursement** : **10% du coût de construction**
+- **Perte nette** : 90% du coût investi
+
+#### Exemples de remboursement
+```
+Station à 1 000 € :
+- Remboursement : 100 €
+- Perte : 900 €
+
+Station à 2 358 € (10ème) :
+- Remboursement : 236 €
+- Perte : 2 122 €
+
+Ligne à 550 € :
+- Remboursement : 55 €
+- Perte : 495 €
+```
+
+#### Quand supprimer ?
+✅ **Supprimez uniquement si :**
+- L'élément est vraiment non rentable
+- Vous avez besoin d'argent d'urgence
+- Vous voulez réorganiser complètement votre réseau
+- L'élément bloque une meilleure stratégie
+
+❌ **Évitez de supprimer si :**
+- Vous perdrez 90% de votre investissement
+- L'élément peut encore servir
+- Vous pouvez optimiser autrement
 
 ---
 
@@ -176,9 +266,10 @@ Objectif : Construire un réseau rentable rapidement
 
 #### 💡 Éviter la faillite
 - Surveiller constamment le solde
-- Ne pas construire trop rapidement
+- Ne pas construire trop rapidement (temps de construction = pas de revenus)
 - Équilibrer construction et rentabilité
-- Supprimer les lignes non rentables
+- Supprimer les lignes non rentables (mais seulement si nécessaire : remboursement de 10% uniquement)
+- **Planifier les constructions** pour maintenir un flux de revenus constant
 
 ---
 
@@ -238,6 +329,7 @@ Objectif : Construire un réseau rentable rapidement
 - Vérifiez toujours votre solde
 - Ne construisez que si vous êtes rentable
 - Gardez une marge de sécurité
+- **Planifiez vos constructions** : elles prennent du temps (10s+) pendant lequel vous ne générez pas de revenus
 
 #### 3. Optimisez avant d'agrandir
 - Améliorez vos stations existantes
@@ -260,7 +352,8 @@ Objectif : Construire un réseau rentable rapidement
 #### 3. Gérez la croissance
 - N'ajoutez une ligne que si nécessaire
 - Équilibrez le nombre de trains
-- Supprimez les éléments non rentables
+- **Supprimez les éléments non rentables** (remboursement de 10% seulement !)
+- **Anticipez les temps de construction** : construisez en avance pour éviter les périodes sans revenus
 
 ---
 
@@ -269,9 +362,17 @@ Objectif : Construire un réseau rentable rapidement
 ### Coûts de construction
 | Élément | Coût initial | Progression | Temps de construction |
 |---------|--------------|-------------|----------------------|
-| Station | 1 000 € | +10% par station | Instantané |
-| Ligne | 500 € | +10% par ligne | Instantané |
-| Train | 2 000 € | Fixe | Instantané |
+| Station | 1 000 € | +10% par station | 10s (+1s par station existante) |
+| Ligne | 500 € | +10% par ligne | 10s (+1s par ligne existante) |
+| Train | 2 000 € | Fixe | 5s |
+
+**Temps de construction progressif :**
+- 1ère station/ligne : 10 secondes
+- 2ème station/ligne : 11 secondes
+- 3ème station/ligne : 12 secondes
+- n-ème : 10 + (n-1) secondes
+
+> ⏱️ **Pendant la construction**, l'élément est visible mais **indisponible** et ne génère aucun revenu.
 
 **Formule de coût progressif :**
 - Coût station n = 1 000 × (1.10)^(n-1)
@@ -332,7 +433,7 @@ Objectif : Construire un réseau rentable rapidement
 R: Vous avez 2 minutes pour remonter la pente. Après, c'est le Game Over.
 
 **Q: Puis-je supprimer une station ou une ligne ?**  
-R: Oui, utilisez l'outil "Supprimer". Vous récupérerez 50% du coût de construction.
+R: Oui, utilisez l'outil "Supprimer". Vous récupérerez **10% du coût de construction** de l'élément.
 
 **Q: Combien de stations maximum ?**  
 R: Pas de limite technique, mais attention aux coûts d'entretien ET aux coûts progressifs (+10% par station) !
@@ -344,7 +445,19 @@ R: Le coût de construction augmente de 10% à chaque nouvelle station et ligne.
 R: Vérifiez qu'elles sont bien reliées à au moins une ligne avec des trains.
 
 **Q: Comment améliorer une station ?**  
-R: Cliquez sur une station existante et choisissez "Améliorer" (fonctionnalité à venir).
+R: Cliquez sur une station existante et choisissez "Améliorer" (fonctionnalité à venir). L'amélioration prendra entre 15 et 30 secondes selon le niveau.
+
+**Q: Que se passe-t-il pendant la construction ?**  
+R: L'élément est visible sur la carte mais **indisponible** et ne génère aucun revenu. Une fois la construction terminée, il devient actif automatiquement.
+
+**Q: Est-ce rentable de supprimer des éléments ?**  
+R: Non, vous ne récupérez que **10% du coût**. Ne supprimez que si l'élément n'est vraiment pas rentable ou bloque votre stratégie. Vous perdez 90% de votre investissement !
+
+**Q: Pourquoi ma nouvelle station met-elle si longtemps à se construire ?**  
+R: Le temps de construction augmente avec le nombre d'éléments : 10s + 1s par élément existant. C'est une mécanique pour ralentir l'expansion rapide et ajouter de la stratégie.
+
+**Q: Puis-je utiliser une station en cours de construction ?**  
+R: Non, elle est visible mais indisponible jusqu'à la fin de la construction. Elle ne génère aucun revenu pendant ce temps.
 
 ---
 

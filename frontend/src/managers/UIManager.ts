@@ -22,7 +22,9 @@ export class UIManager {
   
   updateRevenue(revenue: number) {
     if (this.revenueElement) {
-      this.revenueElement.textContent = `${revenue.toLocaleString('fr-FR')} €/s`;
+      // Le ~ indique que c'est une estimation basée sur les passages de trains
+      const displayValue = revenue > 0 ? `~${revenue.toLocaleString('fr-FR')}` : '0';
+      this.revenueElement.textContent = `${displayValue} €/s`;
     }
   }
   
