@@ -44,7 +44,7 @@ export class Train {
     const nextStationIndex = (this.currentStationIndex + 1) % stations.length;
     const nextStation = stations[nextStationIndex].station;
     
-    // Calculer la distance entre les stations
+    // Calculer la distance entre les stations (approximation pour la courbe)
     const distance = Phaser.Math.Distance.Between(
       currentStation.x, currentStation.y,
       nextStation.x, nextStation.y
@@ -54,9 +54,26 @@ export class Train {
     const progressIncrement = (this.speed * delta / 1000) / distance;
     this.progress += progressIncrement;
     
-    // Interpoler la position
-    this.x = Phaser.Math.Linear(currentStation.x, nextStation.x, this.progress);
-    this.y = Phaser.Math.Linear(currentStation.y, nextStation.y, this.progress);
+    // Calculer le point de contrôle pour la courbe de Bézier
+    const controlPoint = this.calculateCurveControlPoint(
+      currentStation.x, currentStation.y,
+      nextStation.x, nextStation.y,
+      this.currentStationIndex + 1,
+      stations.length
+    );
+    
+    // Interpoler la position le long de la courbe de Bézier quadratique
+    const t = this.progress;
+    const oneMinusT = 1 - t;
+    
+    // Formule de Bézier quadratique: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+    this.x = oneMinusT * oneMinusT * currentStation.x +
+             2 * oneMinusT * t * controlPoint.x +
+             t * t * nextStation.x;
+             
+    this.y = oneMinusT * oneMinusT * currentStation.y +
+             2 * oneMinusT * t * controlPoint.y +
+             t * t * nextStation.y;
     
     // Vérifier si on est arrivé à la prochaine station
     if (this.progress >= 1) {
@@ -69,6 +86,37 @@ export class Train {
     }
     
     return { arrivedAtStation: false };
+  }
+  
+  private calculateCurveControlPoint(
+    x1: number, y1: number,
+    x2: number, y2: number,
+    segmentIndex: number,
+    totalSegments: number
+  ): { x: number, y: number } {
+    // Point milieu entre les deux stations
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    
+    // Vecteur directionnel
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Vecteur perpendiculaire (normal)
+    const normalX = -dy / distance;
+    const normalY = dx / distance;
+    
+    // Intensité de la courbure (plus faible = courbe plus douce)
+    // On alterne la direction de la courbure pour donner un aspect sinueux
+    const curvatureStrength = distance * 0.15; // 15% de la distance
+    const direction = segmentIndex % 2 === 0 ? 1 : -1;
+    
+    // Point de contrôle décalé perpendiculairement
+    const controlX = midX + normalX * curvatureStrength * direction;
+    const controlY = midY + normalY * curvatureStrength * direction;
+    
+    return { x: controlX, y: controlY };
   }
   
   draw(graphics: Phaser.GameObjects.Graphics): void {

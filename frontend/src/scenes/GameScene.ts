@@ -117,6 +117,9 @@ export class GameScene extends Phaser.Scene {
     // Gérer les clics sur la carte
     this.input.on('pointerdown', this.handleMapClick, this);
     
+    // Gérer le mouvement de la souris pour la ligne temporaire
+    this.input.on('pointermove', this.handlePointerMove, this);
+    
     // Connecter les boutons de l'UI
     this.setupUIButtons();
     
@@ -233,6 +236,7 @@ export class GameScene extends Phaser.Scene {
       document.getElementById('tool-station')?.classList.add('active');
       this.lineCreationMode = 'none';
       this.selectedStationForLine = null;
+      this.temporaryLineGraphics.clear();
     } else if (this.currentTool === 'line') {
       document.getElementById('tool-line')?.classList.add('active');
       if (this.stations.length < 2) {
@@ -247,6 +251,7 @@ export class GameScene extends Phaser.Scene {
       document.getElementById('tool-delete')?.classList.add('active');
       this.lineCreationMode = 'none';
       this.selectedStationForLine = null;
+      this.temporaryLineGraphics.clear();
       if (this.stations.length === 0 && this.lines.length === 0) {
         this.uiManager.showNotification('Rien à supprimer', 'info');
       } else {
@@ -372,6 +377,32 @@ export class GameScene extends Phaser.Scene {
     return Math.sqrt(dx * dx + dy * dy);
   }
   
+  private handlePointerMove(pointer: Phaser.Input.Pointer) {
+    // Dessiner une ligne temporaire en mode création de ligne
+    if (this.lineCreationMode === 'selecting_second' && this.selectedStationForLine) {
+      this.temporaryLineGraphics.clear();
+      this.temporaryLineGraphics.lineStyle(4, 0x00ff00, 0.5); // Vert semi-transparent
+      this.temporaryLineGraphics.beginPath();
+      
+      // Calculer le point de contrôle pour la courbe
+      const controlPoint = this.calculateCurveControlPoint(
+        this.selectedStationForLine.x, this.selectedStationForLine.y,
+        pointer.x, pointer.y,
+        1, 2 // Segment 1 sur 2 pour une courbe simple
+      );
+      
+      // Dessiner la courbe avec plusieurs segments
+      this.temporaryLineGraphics.moveTo(this.selectedStationForLine.x, this.selectedStationForLine.y);
+      this.drawQuadraticCurve(
+        this.temporaryLineGraphics,
+        this.selectedStationForLine.x, this.selectedStationForLine.y,
+        controlPoint.x, controlPoint.y,
+        pointer.x, pointer.y
+      );
+      this.temporaryLineGraphics.strokePath();
+    }
+  }
+  
   private handleLineCreationClick(x: number, y: number) {
     // Trouver la station la plus proche du clic
     const clickedStation = this.findStationAtPosition(x, y, 30); // Rayon de 30px pour faciliter le clic
@@ -396,6 +427,9 @@ export class GameScene extends Phaser.Scene {
       
       // Créer la ligne entre les deux stations
       this.createLine(this.selectedStationForLine, clickedStation);
+      
+      // Effacer la ligne temporaire
+      this.temporaryLineGraphics.clear();
       
       // Réinitialiser
       this.lineCreationMode = 'selecting_first';
@@ -431,6 +465,63 @@ export class GameScene extends Phaser.Scene {
     const baseCost = 500;
     const count = this.lines.length;
     return Math.round(baseCost * Math.pow(1.10, count));
+  }
+  
+  private calculateCurveControlPoint(
+    x1: number, y1: number,
+    x2: number, y2: number,
+    segmentIndex: number,
+    totalSegments: number
+  ): { x: number, y: number } {
+    // Point milieu entre les deux stations
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    
+    // Vecteur directionnel
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Vecteur perpendiculaire (normal)
+    const normalX = -dy / distance;
+    const normalY = dx / distance;
+    
+    // Intensité de la courbure (plus faible = courbe plus douce)
+    // On alterne la direction de la courbure pour donner un aspect sinueux
+    const curvatureStrength = distance * 0.15; // 15% de la distance
+    const direction = segmentIndex % 2 === 0 ? 1 : -1;
+    
+    // Point de contrôle décalé perpendiculairement
+    const controlX = midX + normalX * curvatureStrength * direction;
+    const controlY = midY + normalY * curvatureStrength * direction;
+    
+    return { x: controlX, y: controlY };
+  }
+  
+  private drawQuadraticCurve(
+    graphics: Phaser.GameObjects.Graphics,
+    x0: number, y0: number,
+    x1: number, y1: number,
+    x2: number, y2: number
+  ): void {
+    // Dessiner une courbe de Bézier quadratique avec plusieurs segments
+    const segments = 20; // Nombre de segments pour approximer la courbe
+    
+    for (let i = 1; i <= segments; i++) {
+      const t = i / segments;
+      const oneMinusT = 1 - t;
+      
+      // Formule de Bézier quadratique: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+      const x = oneMinusT * oneMinusT * x0 +
+                2 * oneMinusT * t * x1 +
+                t * t * x2;
+                
+      const y = oneMinusT * oneMinusT * y0 +
+                2 * oneMinusT * t * y1 +
+                t * t * y2;
+      
+      graphics.lineTo(x, y);
+    }
   }
   
   private async createStation(x: number, y: number) {
@@ -732,7 +823,21 @@ export class GameScene extends Phaser.Scene {
           if (index === 0) {
             this.lineGraphics.moveTo(station.x, station.y);
           } else {
-            this.lineGraphics.lineTo(station.x, station.y);
+            // Calculer la courbe de Bézier entre la station précédente et actuelle
+            const prevStation = line.stations[index - 1].station;
+            const controlPoint = this.calculateCurveControlPoint(
+              prevStation.x, prevStation.y,
+              station.x, station.y,
+              index, line.stations.length
+            );
+            
+            // Dessiner la courbe quadratique de Bézier
+            this.drawQuadraticCurve(
+              this.lineGraphics,
+              prevStation.x, prevStation.y,
+              controlPoint.x, controlPoint.y,
+              station.x, station.y
+            );
           }
         });
         

@@ -13,42 +13,36 @@
         <div id="phaser-game" class="flex-1"></div>
         
         <div id="ui-overlay" class="absolute top-0 left-0 w-full h-full pointer-events-none">
+            <!-- Bouton de thème séparé -->
+            <button id="theme-toggle" class="pointer-events-auto absolute top-3 left-3 w-10 h-10 rounded-lg card glass-effect flex items-center justify-center hover:scale-110 transition-transform" title="Changer de thème">
+                <span id="theme-icon" class="text-xl">🌙</span>
+            </button>
+            
             <!-- Tableau de bord -->
-            <div id="dashboard" class="pointer-events-auto absolute top-3 right-3 card glass-effect" style="min-width: 240px;">
-                <div class="card-header py-3 px-4">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-bold text-success flex items-center gap-1.5">
-                            <span>🚇</span>
-                            <span>Tableau de bord</span>
-                        </h2>
-                        <!-- Bouton de thème intégré -->
-                        <button id="theme-toggle" class="w-8 h-8 rounded-md hover:bg-dark-700 flex items-center justify-center transition-colors">
-                            <span id="theme-icon" class="text-lg">🌙</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body py-3 px-4">
-                    <!-- Informations utilisateur -->
-                    <div id="user-section" class="hidden border-b pb-2 mb-2" style="border-color: var(--border-color);">
-                        <div class="flex items-center gap-2 mb-2">
-                            <img id="user-avatar" src="" alt="Avatar" class="w-8 h-8 rounded-full border border-primary-500">
+            <div id="dashboard" class="pointer-events-auto absolute top-3 right-3 card glass-effect" style="min-width: 260px;">
+                <div class="py-3 px-4">
+                    <!-- Informations utilisateur connecté -->
+                    <div id="user-section" class="hidden border-b pb-3 mb-3" style="border-color: var(--border-color);">
+                        <div class="flex items-center gap-3 mb-2.5">
+                            <img id="user-avatar" src="" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-primary-500">
                             <div class="flex-1 min-w-0">
-                                <p id="user-name" class="font-medium text-sm truncate" style="color: var(--text-primary);"></p>
-                                <p class="text-xs" style="color: var(--text-tertiary);">Connecté</p>
+                                <p id="user-name" class="font-semibold text-sm truncate" style="color: var(--text-primary);"></p>
+                                <p class="text-xs" style="color: var(--text-tertiary);">✅ Connecté</p>
                             </div>
-                            <button class="text-xs px-2 py-1 rounded hover:bg-danger/10 transition-colors" style="color: var(--text-tertiary);" id="logout-btn" title="Déconnexion">
-                                🚪
-                            </button>
                         </div>
+                        <button class="btn btn-outline w-full text-sm py-2 flex items-center justify-center gap-2 hover:bg-danger/20 hover:border-danger hover:text-danger transition-all font-medium" id="logout-btn">
+                            <span class="text-base">🚪</span>
+                            <span>Déconnexion</span>
+                        </button>
                     </div>
                     
                     <!-- Mode invité -->
-                    <div id="guest-section" class="hidden border-b pb-2 mb-2" style="border-color: var(--border-color);">
-                        <div class="flex items-center gap-2" style="color: var(--warning);">
-                            <span class="text-xl">👤</span>
-                            <div>
-                                <p class="font-medium text-xs">Mode Invité</p>
-                                <p class="text-xs" style="color: var(--text-tertiary);">Non sauvegardé</p>
+                    <div id="guest-section" class="hidden border-b pb-3 mb-3" style="border-color: var(--border-color);">
+                        <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg" style="background-color: var(--bg-tertiary);">
+                            <span class="text-2xl">👤</span>
+                            <div class="flex-1">
+                                <p class="font-semibold text-sm" style="color: var(--text-primary);">Mode Invité</p>
+                                <p class="text-xs" style="color: var(--text-tertiary);">❌ Progression non sauvegardée</p>
                             </div>
                         </div>
                     </div>
