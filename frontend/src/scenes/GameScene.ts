@@ -900,6 +900,7 @@ export class GameScene extends Phaser.Scene {
     this.uiManager.updateRevenue(this.revenue);
     this.uiManager.updateStations(this.stations.length);
     this.uiManager.updateLines(this.lines.length);
+    this.uiManager.updateLinesList(this.lines);
     
     // Mettre à jour les coûts affichés
     this.costDisplay.updateStationCost(this.calculateStationCost());

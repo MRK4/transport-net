@@ -147,6 +147,10 @@
     background-color: rgba(30, 41, 59, 0.95);
   }
   
+  .hover\:scale-102:hover {
+    transform: scale(1.02);
+  }
+  
   :root.light .glass-effect {
     background-color: rgba(255, 255, 255, 0.95);
   }
@@ -177,6 +181,25 @@
   
   .animate-slide-up {
     animation: slideUp 0.4s ease-out;
+  }
+  
+  /* Scrollbar personnalisée pour le panneau des lignes */
+  #lines-panel::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  #lines-panel::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  #lines-panel::-webkit-scrollbar-thumb {
+    background: var(--text-tertiary);
+    border-radius: 3px;
+    opacity: 0.5;
+  }
+  
+  #lines-panel::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
   }
 }
 
